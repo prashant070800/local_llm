@@ -112,8 +112,9 @@ def api_chat(request):
             except Exception as e:
                 yield json.dumps({'error': str(e)}) + "\n"
 
-        response = StreamingHttpResponse(stream_response(), content_type='application/x-ndjson')
+        response = StreamingHttpResponse(stream_response(), content_type='text/event-stream')
         response['X-Accel-Buffering'] = 'no'  # Disable buffering in Nginx/proxies
+        response['Cache-Control'] = 'no-cache'  # Ensure no caching
         return response
 
     except json.JSONDecodeError:

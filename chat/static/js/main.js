@@ -183,30 +183,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 addHistoryItem(data.conversation_id, data.title);
                             }
                         } else if (data.content) {
-                            // Accumulate content
-                            if (!botMsgContent.dataset.markdown) {
-                                botMsgContent.dataset.markdown = '';
-                            }
-                            botMsgContent.dataset.markdown += data.content;
-
-                            // Render Markdown if available, else text
-                            if (typeof marked !== 'undefined') {
-                                try {
-                                    botMsgContent.innerHTML = marked.parse(botMsgContent.dataset.markdown);
-                                    // Highlight code blocks
-                                    if (typeof hljs !== 'undefined') {
-                                        botMsgContent.querySelectorAll('pre code').forEach((block) => {
-                                            hljs.highlightElement(block);
-                                        });
-                                    }
-                                } catch (parseErr) {
-                                    console.error("Markdown parse error:", parseErr);
-                                    botMsgContent.innerText = botMsgContent.dataset.markdown;
-                                }
-                            } else {
-                                botMsgContent.innerText = botMsgContent.dataset.markdown;
-                            }
-
+                            // Append content to the existing HTML (which includes <strong>AI:</strong>)
+                            // We need to be careful not to overwrite the label.
+                            // Since we are just appending text, we can append to innerHTML, but we need to escape HTML if we were supporting it.
+                            // But we are in plain text mode.
+                            // Actually, appending to innerHTML is risky if data.content contains HTML special chars.
+                            // Better to append a text node?
+                            // But we want to keep the <strong>AI:</strong>.
+                            // Let's just append to innerHTML for now as it's simplest for plain text streaming.
+                            botMsgContent.innerHTML += data.content.replace(/\n/g, '<br>');
                             chatArea.scrollTop = chatArea.scrollHeight;
                         } else if (data.error) {
                             botMsgContent.innerText += `\n[Error: ${data.error}]`;
@@ -242,29 +227,22 @@ document.addEventListener('DOMContentLoaded', () => {
             contentDiv.classList.add('error-message');
             contentDiv.innerText = text;
         } else if (sender === 'bot') {
-            // For bot, we might render HTML (Markdown)
-            // But initially, just set text if it's not streaming yet?
-            // Actually, for streaming, we update innerText/innerHTML later.
-            // If it's a full response (e.g. from history), render it.
-            contentDiv.innerHTML = marked.parse(text);
-            // Highlight code blocks
-            contentDiv.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
+            contentDiv.innerHTML = `<strong>AI:</strong><br>${text}`;
         } else {
-            contentDiv.innerText = text;
+            contentDiv.innerHTML = `<strong>You:</strong><br>${text}`;
         }
 
         msgDiv.appendChild(contentDiv);
         chatArea.appendChild(msgDiv);
         chatArea.scrollTop = chatArea.scrollHeight;
-        return msgDiv.id = 'msg-' + Date.now();
+        // Use a more unique ID to prevent collisions
+        return msgDiv.id = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
 
     function appendLoading() {
         const msgDiv = document.createElement('div');
         msgDiv.classList.add('message', 'bot-message');
-        msgDiv.id = 'loading-' + Date.now();
+        msgDiv.id = 'loading-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
         const contentDiv = document.createElement('div');
         contentDiv.classList.add('message-content', 'typing-indicator');
