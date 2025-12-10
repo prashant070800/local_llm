@@ -45,46 +45,68 @@ class OllamaService:
             messages: List of dicts [{'role': 'user'|'assistant', 'content': '...'}]
             model: Model name string
         Returns:
-            - (response_text, None) if successful
-            - (None, "Queue Full") if queue is full
+            - Generator yielding response chunks
+            - Raises queue.Full if queue is full
         """
-        result_event = threading.Event()
-        result_container = {}
-
+        response_queue = queue.Queue()
+        
         try:
             # Try to put in queue, non-blocking if full
-            self.queue.put_nowait(({
+            self.queue.put_nowait({
                 'type': 'chat',
                 'messages': messages,
-                'model': model
-            }, result_event, result_container))
+                'model': model,
+                'response_queue': response_queue
+            })
         except queue.Full:
-            return None, "Queue Full"
+            raise
 
-        # Wait for the result
-        result_event.wait()
-        return result_container.get('response'), result_container.get('error')
+        # Yield from response_queue
+        while True:
+            chunk = response_queue.get()
+            if chunk is None:
+                break
+            if isinstance(chunk, Exception):
+                raise chunk
+            yield chunk
 
     def _worker(self):
         while True:
-            data, event, container = self.queue.get()
+            data = self.queue.get()
+            response_queue = data.get('response_queue')
+            
             try:
                 # Process the request
                 if data['type'] == 'chat':
                     payload = {
                         "model": data['model'],
                         "messages": data['messages'],
-                        "stream": False
+                        "stream": True
                     }
-                    response = requests.post(f"{self.base_url}/api/chat", json=payload)
-                    if response.status_code == 200:
-                        resp_data = response.json()
-                        # Ollama chat response structure: {'message': {'role': 'assistant', 'content': '...'}, ...}
-                        container['response'] = resp_data.get('message', {}).get('content', '')
-                    else:
-                        container['error'] = f"Ollama API Error: {response.status_code} - {response.text}"
+                    with requests.post(f"{self.base_url}/api/chat", json=payload, stream=True) as response:
+                        if response.status_code == 200:
+                            buffer = b""
+                            for chunk in response.iter_content(chunk_size=None):
+                                if chunk:
+                                    buffer += chunk
+                                    while b"\n" in buffer:
+                                        line, buffer = buffer.split(b"\n", 1)
+                                        if line:
+                                            try:
+                                                json_response = json.loads(line)
+                                                content = json_response.get('message', {}).get('content', '')
+                                                if content:
+                                                    response_queue.put(content)
+                                                if json_response.get('done', False):
+                                                    break
+                                            except json.JSONDecodeError:
+                                                continue
+                        else:
+                            response_queue.put(Exception(f"Ollama API Error: {response.status_code} - {response.text}"))
             except Exception as e:
-                container['error'] = str(e)
+                if response_queue:
+                    response_queue.put(e)
             finally:
-                event.set()
+                if response_queue:
+                    response_queue.put(None) # Signal end of stream
                 self.queue.task_done()

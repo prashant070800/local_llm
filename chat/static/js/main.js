@@ -124,8 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.disabled = true;
         sendBtn.disabled = true;
 
-        // Add loading indicator
-        const loadingId = appendLoading();
+        // Create bot message container immediately
+        const botMsgId = appendMessage('', 'bot');
+        const botMsgContent = document.querySelector(`#${botMsgId} .message-content`);
+        botMsgContent.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
 
         try {
             const response = await fetch('/api/chat/', {
@@ -140,30 +142,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
 
-            const data = await response.json();
-
-            // Remove loading
-            removeMessage(loadingId);
-
-            if (response.ok) {
-                appendMessage(data.response, 'bot');
-
-                // If it was a new chat, update ID and sidebar
-                if (!currentConversationId && data.conversation_id) {
-                    currentConversationId = data.conversation_id;
-                    currentChatTitle.innerText = data.title;
-                    addHistoryItem(data.conversation_id, data.title);
-                }
-            } else {
+            if (!response.ok) {
+                botMsgContent.innerHTML = ''; // Clear typing indicator
                 if (response.status === 409) {
-                    appendMessage("⚠️ Server is busy (Queue Full). Please try again in a moment.", 'bot', true);
+                    botMsgContent.innerText = "⚠️ Server is busy (Queue Full). Please try again in a moment.";
+                    botMsgContent.classList.add('error-message');
                 } else {
-                    appendMessage(`⚠️ Error: ${data.error || 'Something went wrong'}`, 'bot', true);
+                    const data = await response.json();
+                    botMsgContent.innerText = `⚠️ Error: ${data.error || 'Something went wrong'}`;
+                    botMsgContent.classList.add('error-message');
+                }
+                return;
+            }
+
+            // Clear typing indicator before streaming
+            botMsgContent.innerHTML = '';
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep the last partial line in buffer
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+
+                        if (data.conversation_id) {
+                            // If it was a new chat, update ID and sidebar
+                            if (!currentConversationId) {
+                                currentConversationId = data.conversation_id;
+                                currentChatTitle.innerText = data.title;
+                                addHistoryItem(data.conversation_id, data.title);
+                            }
+                        } else if (data.content) {
+                            botMsgContent.innerText += data.content;
+                            chatArea.scrollTop = chatArea.scrollHeight;
+                        } else if (data.error) {
+                            botMsgContent.innerText += `\n[Error: ${data.error}]`;
+                            botMsgContent.classList.add('error-message');
+                        }
+                    } catch (e) {
+                        console.error("Error parsing JSON chunk", e);
+                    }
                 }
             }
+
         } catch (err) {
-            removeMessage(loadingId);
-            appendMessage("⚠️ Network Error. Please check your connection.", 'bot', true);
+            const botMsgContent = document.querySelector(`#${botMsgId} .message-content`);
+            if (botMsgContent) {
+                botMsgContent.innerHTML = "⚠️ Network Error. Please check your connection.";
+                botMsgContent.classList.add('error-message');
+            }
             console.error(err);
         } finally {
             userInput.disabled = false;
