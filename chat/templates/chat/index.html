@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Overlay for mobile -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="new-chat-btn" class="new-chat-btn">
+                    <span>+</span> New Chat
+                </button>
+            </div>
+            <div class="history-list" id="history-list">
+                {% for conv in conversations %}
+                <div class="history-item" data-id="{{ conv.id }}">
+                    <span class="chat-title">{{ conv.title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <span>{{ user.username }}</span>
+                    <a href="{% url 'logout' %}" class="logout-btn">Log out</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="main-content">
+            <header class="chat-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn" id="mobile-menu-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h1 id="current-chat-title">New Chat</h1>
+                    <span class="status-badge">Online</span>
+                </div>
+                <div class="header-right">
+                    <select id="model-select" class="model-select">
+                        <option value="llama3.1:8b" selected>Llama 3.1 8b</option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="chat-area" id="chat-area">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        Hello! I'm running on Llama 3.1. Ask me anything.
+                    </div>
+                </div>
+            </div>
+
+            <footer class="input-area">
+                <form id="chat-form">
+                    <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
+                    <button type="submit" id="send-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24"
+                            height="24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                        </svg>
+                    </button>
+                </form>
+            </footer>
+        </main>
+    </div>
+    <script src="{% static 'js/main.js' %}"></script>
+</body>
+
+</html>
