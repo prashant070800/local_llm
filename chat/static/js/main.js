@@ -183,7 +183,25 @@ document.addEventListener('DOMContentLoaded', () => {
                                 addHistoryItem(data.conversation_id, data.title);
                             }
                         } else if (data.content) {
-                            botMsgContent.innerText += data.content;
+                            // Accumulate content in a buffer for this message?
+                            // We need to keep track of the full message text to re-render Markdown
+                            // But `botMsgContent.innerText += data.content` appends to rendered text which is wrong if we use innerHTML.
+
+                            // We need a variable to hold the full markdown text for the current stream.
+                            // Let's attach it to the DOM element or use a local variable.
+                            if (!botMsgContent.dataset.markdown) {
+                                botMsgContent.dataset.markdown = '';
+                            }
+                            botMsgContent.dataset.markdown += data.content;
+
+                            // Render Markdown
+                            botMsgContent.innerHTML = marked.parse(botMsgContent.dataset.markdown);
+
+                            // Highlight code blocks
+                            botMsgContent.querySelectorAll('pre code').forEach((block) => {
+                                hljs.highlightElement(block);
+                            });
+
                             chatArea.scrollTop = chatArea.scrollHeight;
                         } else if (data.error) {
                             botMsgContent.innerText += `\n[Error: ${data.error}]`;
@@ -217,9 +235,20 @@ document.addEventListener('DOMContentLoaded', () => {
         contentDiv.classList.add('message-content');
         if (isError) {
             contentDiv.classList.add('error-message');
+            contentDiv.innerText = text;
+        } else if (sender === 'bot') {
+            // For bot, we might render HTML (Markdown)
+            // But initially, just set text if it's not streaming yet?
+            // Actually, for streaming, we update innerText/innerHTML later.
+            // If it's a full response (e.g. from history), render it.
+            contentDiv.innerHTML = marked.parse(text);
+            // Highlight code blocks
+            contentDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        } else {
+            contentDiv.innerText = text;
         }
-
-        contentDiv.innerText = text;
 
         msgDiv.appendChild(contentDiv);
         chatArea.appendChild(msgDiv);
