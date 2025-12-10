@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import Conversation, Message
+from .models import Conversation, Message, UserLoginLog
 
 # Unregister the provided model admin
 admin.site.unregister(User)
@@ -12,9 +12,16 @@ class ConversationInline(admin.TabularInline):
     readonly_fields = ('created_at', 'updated_at')
     show_change_link = True
 
+class UserLoginLogInline(admin.TabularInline):
+    model = UserLoginLog
+    extra = 0
+    readonly_fields = ('ip_address', 'user_agent', 'timestamp')
+    can_delete = False
+    ordering = ('-timestamp',)
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    inlines = [ConversationInline]
+    inlines = [ConversationInline, UserLoginLogInline]
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'conversation_count')
     
     def conversation_count(self, obj):
@@ -61,3 +68,10 @@ class MessageAdmin(admin.ModelAdmin):
     def short_content(self, obj):
         return obj.content[:50] + '...' if len(obj.content) > 50 else obj.content
     short_content.short_description = 'Content'
+
+@admin.register(UserLoginLog)
+class UserLoginLogAdmin(admin.ModelAdmin):
+    list_display = ('user', 'ip_address', 'timestamp')
+    list_filter = ('timestamp',)
+    search_fields = ('user__username', 'ip_address')
+    readonly_fields = ('user', 'ip_address', 'user_agent', 'timestamp')
