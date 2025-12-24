@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-&f%e$+&%d3*d#ua-q=kzmjix48fhp%rcu%10c&&t+!sg#64jfg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["prashant.jaxl.io", "localhost", "127.0.0.1", "::1"]
+ALLOWED_HOSTS = ["prashant.jaxl.io", "localhost", "127.0.0.1", "::1", "testserver"]
 CSRF_TRUSTED_ORIGINS = ["https://prashant.jaxl.io"]
 
 
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'chat',
+    'summarization',
 ]
 
 MIDDLEWARE = [

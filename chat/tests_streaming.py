@@ -1,3 +1,11 @@
+import os
+import django
+from django.conf import settings
+
+if not settings.configured:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ollama_chat.settings")
+    django.setup()
+
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from unittest.mock import patch, MagicMock
